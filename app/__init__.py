@@ -1,16 +1,28 @@
 from flask import Flask
-from dotenv import load_dotenv
+from app.config import Config
+from app.extensions import db, migrate, cors, jwt
 
-from app.common.config import config
-from app.controllers.api import create_api_blueprint
-from app.infrastructure.extensions import init_extensions
-from app.common.security.jwt_callbacks import register_jwt_callbacks
+from app.routes.auth_routes import auth_bp
+from app.routes.admin_routes import admin_bp
+from app.routes.cctv_routes import cctv_bp
 
 
-def create_app(config_object='dev'):
+def create_app():
     app = Flask(__name__)
-    app.config.from_object(config[config_object])
+    app.config.from_object(Config)
 
-    init_extensions(app)
+    db.init_app(app)
+    migrate.init_app(app, db)
+    jwt.init_app(app)
+
+    cors.init_app(
+        app,
+        resources={r"/api/*": {"origins": app.config["FRONTEND_URL"]}},
+        supports_credentials=True,
+    )
+
+    app.register_blueprint(auth_bp, url_prefix="/api/auth")
+    app.register_blueprint(admin_bp, url_prefix="/api/admin")
+    app.register_blueprint(cctv_bp, url_prefix="/api/cctv")
 
     return app
